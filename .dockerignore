@@ -1,0 +1,7 @@
+support/development/*
+support/test/.dev
+support/test/.tmp
+runForDev.sh
+.circleci
+locales
+sailsWorkingDir
