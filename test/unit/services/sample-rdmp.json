@@ -1,0 +1,134 @@
+{
+  "metaMetadata" : {
+      "createdBy" : "admin",
+      "type" : "rdmp",
+      "packageType" : "rdmp",
+      "form" : "default-1.0-draft",
+      "attachmentFields" : [ 
+          "licences_agreements"
+      ],
+      "lastSavedBy" : "admin"
+  },
+  "authorization" : {
+      "view" : [ 
+          "admin", 
+          "admin"
+      ],
+      "edit" : [ 
+          "admin", 
+          "admin"
+      ],
+      "viewRoles" : [ 
+          "Admin", 
+          "Librarians"
+      ],
+      "editRoles" : [ 
+          "Admin", 
+          "Librarians"
+      ],
+      "editPending" : [],
+      "viewPending" : []
+  },
+  "metadata" : {
+      "" : {},
+      "title" : "test-minio-1",
+      "dc:identifier" : "kjk",
+      "description" : "",
+      "finalKeywords" : [ 
+          ""
+      ],
+      "dc:relation_bibo:Website" : "",
+      "dc:coverage_vivo:DateTimeInterval_vivo:start" : "",
+      "dc:coverage_vivo:DateTimeInterval_vivo:end" : "",
+      "foaf:fundedBy_foaf:Agent" : [ 
+          ""
+      ],
+      "foaf:fundedBy_vivo:Grant" : [ 
+          ""
+      ],
+      "dc:subject_anzsrc:toa_rdf:resource" : "",
+      "dc:subject_anzsrc:for" : [],
+      "dc:subject_anzsrc:seo" : [],
+      "contributor_ci" : {
+          "text_full_name" : null,
+          "full_name_honorific" : null,
+          "email" : null,
+          "given_name" : null,
+          "family_name" : null,
+          "honorific" : null,
+          "full_name_family_name_first" : null,
+          "username" : null,
+          "role" : "Chief Investigator",
+          "orcid" : null
+      },
+      "contributor_data_manager" : {
+          "text_full_name" : "Local Admin",
+          "email" : "admin@redboxresearchdata.com.au",
+          "username" : "",
+          "role" : "Data manager",
+          "orcid" : null
+      },
+      "contributors" : [ 
+          {
+              "text_full_name" : null,
+              "full_name_honorific" : "",
+              "email" : null,
+              "given_name" : "",
+              "family_name" : "",
+              "honorific" : "",
+              "full_name_family_name_first" : "",
+              "username" : "",
+              "role" : "Contributors",
+              "orcid" : null
+          }
+      ],
+      "contributor_supervisor" : {
+          "text_full_name" : null,
+          "full_name_honorific" : "",
+          "email" : null,
+          "given_name" : "",
+          "family_name" : "",
+          "honorific" : "",
+          "full_name_family_name_first" : "",
+          "username" : "",
+          "role" : "Supervisor",
+          "orcid" : null
+      },
+      "vivo:Dataset_redbox:DataCollectionMethodology" : "",
+      "vivo:Dataset_dc_format" : "",
+      "vivo:Dataset_redbox:DataCollectionResources" : "",
+      "vivo:Dataset_redbox:DataAnalysisResources" : "",
+      "vivo:Dataset_redbox:MetadataStandard" : "",
+      "vivo:Dataset_redbox:DataStructureStandard" : "",
+      "vivo:Dataset_dc:extent" : "",
+      "vivo:Dataset_dc:location_rdf:PlainLiteral" : "",
+      "vivo:Dataset_dc:location_skos:note" : "",
+      "vivo:Dataset_dc:source_dc:location_rdf:PlainLiteral" : "",
+      "vivo:Dataset_dc:source_dc:location_skos:note" : "",
+      "redbox:retentionPeriod_dc:date" : "",
+      "redbox:retentionPeriod_dc:date_skos:note" : "",
+      "dataowner_name" : "",
+      "dataowner_email" : "",
+      "dc:rightsHolder_dc:name" : "",
+      "dc:rightsHolder_dc:description" : "",
+      "redbox:ContractualObligations" : "",
+      "dc:coverage_dc:identifier" : [ 
+          ""
+      ],
+      "dc:accessRights" : "permission from the data manager",
+      "dataLicensingAccess_manager" : "Local Admin",
+      "agls:policy_dc:identifier" : "",
+      "agls:policy_skos:note" : "",
+      "agls:protectiveMarking_dc:type" : [],
+      "agls:protectiveMarking_skos:note" : "",
+      "licences_agreements" : [],
+      "grant_number_name" : "",
+      "workspaces" : [],
+      "WorkspaceSelector" : "",
+      "permissions" : []
+  },
+  "workflow" : {
+      "stage" : "draft",
+      "stageLabel" : "Draft"
+  }
+}

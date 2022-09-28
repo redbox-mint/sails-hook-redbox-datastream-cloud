@@ -3,3 +3,6 @@
 support
 *.tgz
 .nvmrc
+.dockerignore
+Dockerfile
+.gitignore

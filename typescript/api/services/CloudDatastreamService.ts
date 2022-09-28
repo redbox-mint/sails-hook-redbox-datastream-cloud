@@ -104,9 +104,24 @@ export module Services {
       if (!_.isUndefined(companionConfig.s3)) {
         // init the local S3 client
         const clientConfig = {     
-          region: companionConfig.s3.region 
+          region: companionConfig.s3.region
         };
-        sails.log.verbose(JSON.stringify(clientConfig));
+        if (!_.isEmpty(companionConfig.s3.endpoint)) {
+          _.set(clientConfig, 'endpoint', companionConfig.s3.endpoint);
+        }
+
+        if (!_.isUndefined(companionConfig.s3.bucketEndpoint)) {
+          _.set(clientConfig, 'bucketEndpoint', companionConfig.s3.bucketEndpoint);
+        }
+        
+        if (!_.isUndefined(companionConfig.s3.tls)) {
+          _.set(clientConfig, 'tls', companionConfig.s3.tls);
+        }
+
+        if (!_.isUndefined(companionConfig.s3.forcePathStyle)) {
+          _.set(clientConfig, 'forcePathStyle', companionConfig.s3.forcePathStyle);
+        }
+
         this.s3Client = new S3Client(clientConfig);
 
         this.s3BucketParams = {
@@ -117,34 +132,38 @@ export module Services {
     }
 
     private async initDb() {
-      sails.log.verbose(`${this.logHeader} Initialising DB...`);
+      sails.log.verbose(`${this.logHeader} initDb() -> Initialising DB...`);
       const db = CloudAttachment.getDatastore().manager;
       // create collection 
-      try {
-        const collectionInfo = await db.collection(CloudAttachment.tableName, {strict:true});
-        sails.log.verbose(`${this.logHeader} Collection '${CloudAttachment.tableName}' info:`);
-        sails.log.verbose(JSON.stringify(collectionInfo));
-      } catch (err) {
-        sails.log.verbose(`${this.logHeader} initDb() -> Collection doesn't exist, creating: ${CloudAttachment.tableName}`);
-        const uuid = this.getUuid();
-        const initRec = {redboxOid: uuid};
-        await CloudAttachment.create(initRec);
-        await CloudAttachment.destroyOne({redboxOid: uuid});
-      }
-      // creating indices...
-      // Version as of writing: http://mongodb.github.io/node-mongodb-native/3.6/api/Collection.html#createIndexes
-      const currentIndices = await db.collection(CloudAttachment.tableName).indexes();
-      try {
-        const indices = sails.config.datastreamCloud.mongodb.indices;
-        if (_.size(indices) > 0) {
-          // TODO: check if indices already exists
-          await db.collection(CloudAttachment.tableName).createIndexes(indices);
+      // Note: promises would have made this a lot simpler, but it seems the native driver is requiring callback. Do simplify in the future when this is no longer a requirement: https://mongodb.github.io/node-mongodb-native/api-generated/db.html#collection
+      db.collection(CloudAttachment.tableName, {strict:true}, async (err, collectionInfo) => {
+        if (err) {
+          sails.log.verbose(`${this.logHeader} initDb() -> Collection doesn't exist, creating: ${CloudAttachment.tableName}`);
+          const uuid = this.getUuid();
+          const initRec = {redboxOid: uuid};
+          await CloudAttachment.create(initRec);
+          sails.log.verbose(`${this.logHeader} initDb() -> Creation complete, cleaning up.`);
+          await CloudAttachment.destroyOne({redboxOid: uuid});
+        } else {
+          sails.log.verbose(`${this.logHeader} initDb() -> Collection '${CloudAttachment.tableName}' already exists.`);
+        } 
+        // creating indices...
+        // Version as of writing: http://mongodb.github.io/node-mongodb-native/3.6/api/Collection.html#createIndexes
+        sails.log.verbose(`${this.logHeader} initDb() -> Checking indices.`);
+        const currentIndices = await db.collection(CloudAttachment.tableName).indexes();
+        try {
+          const indices = sails.config.datastreamCloud.mongodb.indices;
+          // only create when there are indices specified and that the current indices exceed the configured ones, to consider automatically created indices. Defensively using '<=' in case the no. of automatic ones exactly match the configured indices.
+          if (_.size(indices) > 0 && _.size(currentIndices) <= _.size(indices)) {
+            sails.log.verbose(`${this.logHeader} initDB() -> Creating indices.`);
+            await db.collection(CloudAttachment.tableName).createIndexes(indices);
+          }
+        } catch (err) {
+          sails.log.error(`${this.logHeader} initDb() -> Failed to create indices:`);
+          sails.log.error(err);
         }
-      } catch (err) {
-        sails.log.error(`${this.logHeader} initDb() -> Failed to create indices:`);
-        sails.log.error(JSON.stringify(err));
-      }
-      sails.log.verbose(`${this.logHeader} DB Inited.`);
+        sails.log.verbose(`${this.logHeader} initDb() -> DB Inited.`);  
+      }); 
     }
 
     /**
@@ -313,6 +332,8 @@ export module Services {
         } catch (err) {
           sails.log.error(`${this.logHeader} addDatastream() -> Failed to upload: ${uploadParams['Key']}`);
           sails.log.error(err);
+          _.unset(uploadParams, 'Body');
+          sails.log.error(uploadParams);
           throw new Error("Failed to upload file, check server logs.");
         }
       } else {

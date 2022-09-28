@@ -1,0 +1,76 @@
+version: '3.7'
+networks:
+  main:
+
+services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2022-08-26T19-53-15Z
+    container_name: test_minio
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+      - "9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    hostname: minio
+    volumes:
+      - .dev/minio-data:/data
+    networks:
+     main:
+       aliases:
+         - minio
+  hook:
+    image: qcifengineering/redbox-portal:node-18
+    container_name: test_hook
+    ports:
+      - "1500:1500"
+    expose:
+      - "1500"
+    volumes:
+      - "../../:/opt/sails-hook-redbox-datastream-cloud"
+      - "./.dev/attachments:/attachments:delegated"
+    depends_on:
+     - minio
+     - mongodb
+     - solr
+    networks:
+     main:
+       aliases:
+         - datastream_hook
+    environment:
+      - NODE_ENV=test
+      - PORT=1500
+      - sails_redbox__apiKey=c8e844fc-8550-497f-b970-7900ec8741ca
+      - sails_record__baseUrl__mint=https://demo.redboxresearchdata.com.au/mint
+    entrypoint: /bin/bash -c "cd /opt/sails-hook-redbox-datastream-cloud/support/test; chmod +x *.sh; ./start-test.sh"
+  mongodb:
+    container_name: test_mongodb
+    image: mvertes/alpine-mongo:latest
+    networks:
+      main:
+        aliases:
+          - mongodb
+    ports:
+      - "27017:27017"
+    expose:
+      - "27017"
+  solr:
+    container_name: test_solr
+    image: solr:latest
+    expose:
+      - "8983"
+    ports:
+      - "8983:8983"
+    networks:
+      main:
+       aliases:
+         - solr
+    entrypoint:
+      - docker-entrypoint.sh
+      - solr-precreate
+      - redbox  
+    
