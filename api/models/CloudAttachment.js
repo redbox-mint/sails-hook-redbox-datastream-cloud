@@ -16,13 +16,9 @@
     },
     createdAt: false,
     updatedAt: false,
-    dateCreated: {
+    uploadDate: {
       type: 'string',
       autoCreatedAt: true
-    },
-    lastSaveDate: {
-      type: 'string',
-      autoUpdatedAt: true
     }
   },
   datastore: 'redboxStorage'

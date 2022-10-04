@@ -321,7 +321,8 @@ export module Services {
               cloudType: 's3',
               bucket: this.s3BucketParams.Bucket,
               key: uploadParams['Key'],
-              filename: datastream.fileId
+              filename: datastream.fileId,
+              ETag: uploadResp['ETag']
             });
             await this.saveAttachmentRel(oid, attachMetaRel);
           } else {
@@ -414,7 +415,7 @@ export module Services {
       const attMetaArr = [];
       for (const att of attachments) {
         const attMeta = {};
-        attMeta['uploadDate'] = _.get(att, 'lastSaveDate');
+        attMeta['uploadDate'] = _.get(att, 'uploadDate');
         _.set(attMeta, 'metadata.name', _.get(att, 'metadata.name'));
         _.set(attMeta, 'metadata.mimeType', _.get(att, 'metadata.mimeType'));
         _.set(attMeta, 'redboxOid', oid);
