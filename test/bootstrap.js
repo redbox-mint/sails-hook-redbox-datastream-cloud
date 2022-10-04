@@ -20,8 +20,8 @@ describe('Bootstrap tests ::', function() {
   // Before running any tests, attempt to lift Sails
   before(function (done) {
 
-    // Hook will timeout in 10 seconds
-    this.timeout(10000);
+    // Hook will timeout in 180 seconds
+    this.timeout(180000);
 
     // Attempt to lift sails
     Sails().lift({

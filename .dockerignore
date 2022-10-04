@@ -5,3 +5,4 @@ runForDev.sh
 .circleci
 locales
 sailsWorkingDir
+support/migration

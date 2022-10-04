@@ -5,7 +5,7 @@ let sampleRecordFilePath = `/opt/sails-hook-redbox-datastream-cloud/test/unit/se
 let testHeader = 'TEST::CloudDatastreamService::';
 describe('The CloudDatastreamService', function () {
   before(async function () {
-    this.timeout(60000);
+    this.timeout(180000);
     oid = uuidv1().replace(/-/g, '');
     datastream = {fileId: sampleRecordFile};
     await fs.mkdir(sails.config.datastreamCloud.companion.filePath, {recursive: true});
@@ -14,7 +14,7 @@ describe('The CloudDatastreamService', function () {
   });
 
   it('can add, retrieve, remove and list datastream', async function () {
-    this.timeout(60000);
+    this.timeout(180000);
     sails.after('hook:redbox:datastream:ready', async () => {
       let CloudDatastreamService = sails.services['clouddatastreamservice'];
       await CloudDatastreamService.addDatastream(oid, datastream);
