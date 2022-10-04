@@ -61,10 +61,28 @@ For example, when configured with AWS S3:
 3. ReDBox uploads to S3
 4. ReDBox updates the DB with information about the uploaded file.
 
-
 ## Installation
+
+`npm i @researchdatabox/sails-hook-redbox-datastream-cloud`
 
 ## Configuration
 
+The default configuration assumes local development, using [Minio](https://min.io/).
+
+In most cases, you will only need to modify the following S3-specific configuration:
+
+- Endpoint
+  - `datastreamCloud.companion.s3.endpoint` or preferably `HOOK_S3_ENDPOINT` environment variable
+- Region
+  - `datastreamCloud.companion.s3.region` or preferably `HOOK_S3_REGION` environment variable
+- Bucket
+  - `datastreamCloud.companion.s3.bucket` or preferably `HOOK_S3_BUCKET` environment variable
+- Authentication
+  - `datastreamCloud.companion.s3.key` & `datastreamCloud.companion.s3.secret`  or preferably, via the [AWS credentials file](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+  - The development and test environment variable test scripts generate the credentials file using the `HOOK_S3_ACCESS_KEY` & `HOOK_S3_SECRET_KEY` environment variables. These enviroment variables are ignored outside of the development and test start up scripts, use a more production-ready way to populate those sensitive values.
+
+NOTE: Though the current version is not using the Companion library, a bulk of the Companion-specific configuration block is retained for now.
+
 ## Migration
+
 
