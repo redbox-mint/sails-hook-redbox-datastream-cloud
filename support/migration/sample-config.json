@@ -1,0 +1,26 @@
+{
+  "mongodb": {
+    "source": {
+      "connectionStr": "mongodb://localhost:27018",
+      "dbName": "redbox-storage",
+      "query": {}
+    },
+    "target": {
+      "connectionStr": "mongodb://127.0.0.1:27017",
+      "dbName": "redbox-storage",
+      "collection": "cloudattachment"
+    }
+  },
+  "s3": {
+    "bucketName": "attachments",
+    "keyPrefix": "attachments/",
+    "logS3UploadProgress": false,
+    "skipUploaded": true, 
+    "clientConfig": {
+      "tls": false,
+      "endpoint": "http://127.0.0.1:9000",
+      "forcePathStyle": true,
+      "region": "ap-southeast-2"
+    }
+  }
+}
