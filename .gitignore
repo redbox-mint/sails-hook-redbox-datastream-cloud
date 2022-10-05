@@ -49,3 +49,4 @@ api/services
 support/development/.dev
 support/development/.tmp
 support/development/.aws
+local-config.json
