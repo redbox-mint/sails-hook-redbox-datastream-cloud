@@ -230,7 +230,7 @@ export module Services {
     }
 
     public async removeDatastream(oid, datastream: Datastream) : Promise<any> {
-      if (_.isEmpty(datastream.cloudType) && sails.config.datastreamCloud.defaultCloudType == 's3') {
+      if (_.isEmpty(_.get(datastream, 'cloudType')) && sails.config.datastreamCloud.defaultCloudType == 's3') {
         // default to S3
         const fileId = datastream.fileId;
         const streamKey = this.getKey(oid, fileId);
@@ -253,8 +253,8 @@ export module Services {
         } 
       } else {
         //TODO: handle other provider types, but for now fail fast
-        sails.log.error(`${this.logHeader} removeDatastream() -> Cloud type unsupported: ${datastream.cloudType}`);
-        throw new Error(`Unsupported datastream cloud type: ${datastream.cloudType}`);
+        sails.log.error(`${this.logHeader} removeDatastream() -> Cloud type unsupported: ${_.get(datastream, 'cloudType')}`);
+        throw new Error(`Unsupported datastream cloud type: ${_.get(datastream, 'cloudType')}`);
       }
     }
 
@@ -290,13 +290,13 @@ export module Services {
 
     public async addDatastream(oid, datastream: Datastream): Promise<any> {
       // used for uploading files from the server to the cloud storage provider
-      if (_.isEmpty(datastream.cloudType) && sails.config.datastreamCloud.defaultCloudType == 's3') {
+      if (_.isEmpty(_.get(datastream, 'cloudType')) && sails.config.datastreamCloud.defaultCloudType == 's3') {
         // default to S3
         this.uploadToS3(oid, datastream);
       } else {
         //TODO: handle other provider types, but for now fail fast
-        sails.log.error(`${this.logHeader} addDatastream() -> Cloud type unsupported: ${datastream.cloudType}`);
-        throw new Error(`Unsupported datastream cloud type: ${datastream.cloudType}`);
+        sails.log.error(`${this.logHeader} addDatastream() -> Cloud type unsupported: ${_.get(datastream, 'cloudType')}`);
+        throw new Error(`Unsupported datastream cloud type: ${_.get(datastream, 'cloudType')}`);
       }
     }
 
