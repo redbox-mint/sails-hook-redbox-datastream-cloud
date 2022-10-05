@@ -5,6 +5,7 @@ jobs:
       - image: cimg/node:18.7.0
     working_directory: ~/repo
     steps:
+      - setup_remote_docker
       - checkout
       - run: npm install && node_modules/.bin/tsc
       - run:
