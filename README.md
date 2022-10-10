@@ -83,6 +83,12 @@ In most cases, you will only need to modify the following S3-specific configurat
 
 NOTE: Though the current version is not using the Companion library, a bulk of the Companion-specific configuration block is retained for now.
 
-## Migration
+## Migration tools
 
+Doco in [here](support/migration/README.md)
 
+## Local development
+
+- Install [NVM](https://github.com/nvm-sh/nvm)
+- In the cloned directory, run `nvm use`
+- Run `npm run dev`

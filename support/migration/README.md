@@ -1,6 +1,6 @@
 # MongoDB GridFS to Cloud Datastream S3 Migration
 
-This script migrates datastream data stored in GridFS into any S3-like Cloud storage backeend.
+This [script](migrate.js) migrates datastream data stored in GridFS into any S3-like Cloud storage backeend.
 
 The script will stream both the download and upload of datastream data.
 
