@@ -91,4 +91,5 @@ Doco in [here](support/migration/README.md)
 
 - Install [NVM](https://github.com/nvm-sh/nvm)
 - In the cloned directory, run `nvm use`
+- Run `npm i`
 - Run `npm run dev`
