@@ -9,7 +9,7 @@ jobs:
       #- attach_workspace:
       #      at: /home/circleci/project
       - checkout
-      - run: npm install && node_modules/.bin/tsc
+      - run: npm install && node_modules/.bin/tsc --skipLibCheck
       # - run:
       #     name: Running Test
       #     command: npm run test
