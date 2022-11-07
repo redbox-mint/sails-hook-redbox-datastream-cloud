@@ -8,6 +8,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } fro
 import { v1 as uuidv1 } from 'uuid';
 
 const fs = require('fs-extra');
+const hasha = require('hasha');
 
 declare var sails: Sails;
 declare var _;
@@ -300,9 +301,15 @@ export module Services {
       }
     }
 
+    private async getMD5HashFromFile(filePath){
+      return await hasha.fromFile(filePath, {algorithm: 'md5', encoding: 'hex'}); 
+    }
+
     private async uploadToS3(oid: string, datastream: Datastream) {
       const filePath = `${sails.config.datastreamCloud.companion.filePath}/${datastream.fileId}`;
       if (await fs.exists(filePath)) {
+        const md5Hex = await this.getMD5HashFromFile(filePath);
+        const md5Base64 = Buffer.from(md5Hex, 'hex').toString('base64');
         const fileStream = fs.createReadStream(filePath);     
         const uploadParams = _.clone(this.s3BucketParams);
         if (!_.isEmpty(datastream['bucket'])) {
@@ -310,6 +317,7 @@ export module Services {
         }
         uploadParams['Key'] = this.getKey(oid, datastream.fileId);
         uploadParams['Body'] = fileStream;
+        uploadParams['ContentMD5'] = md5Base64;
         try {
           sails.log.verbose(`${this.logHeader} addDataStream() -> Uploading: ${filePath}`);
           const uploadResp = await this.s3Client.send(new PutObjectCommand(uploadParams));
@@ -322,7 +330,8 @@ export module Services {
               bucket: this.s3BucketParams.Bucket,
               key: uploadParams['Key'],
               filename: datastream.fileId,
-              ETag: uploadResp['ETag']
+              ETag: uploadResp['ETag'],
+              md5: md5Hex
             });
             await this.saveAttachmentRel(oid, attachMetaRel);
           } else {

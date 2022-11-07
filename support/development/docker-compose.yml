@@ -25,7 +25,7 @@ services:
        aliases:
          - minio
   hook:
-    image: qcifengineering/redbox-portal:node-18
+    image: qcifengineering/redbox-portal:develop
     container_name: dev_hook
     ports:
       - "1500:1500"

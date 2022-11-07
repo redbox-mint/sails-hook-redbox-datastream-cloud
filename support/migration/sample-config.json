@@ -8,7 +8,8 @@
     "target": {
       "connectionStr": "mongodb://127.0.0.1:27017",
       "dbName": "redbox-storage",
-      "collection": "cloudattachment"
+      "collection": "cloudattachment",
+      "tempDir": "/tmp"
     }
   },
   "s3": {

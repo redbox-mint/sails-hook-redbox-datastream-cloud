@@ -1,6 +1,6 @@
 {
   "name": "@researchdatabox/sails-hook-redbox-datastream-cloud",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A ReDBox Datastream Service implementation for Cloud storage services, e.g. AWS S3, Minio, etc.",
   "main": "index.js",
   "sails": {
@@ -15,9 +15,9 @@
   },
   "scripts": {
     "predev": "mkdir -p support/development/.dev/attachments; mkdir -p support/development/.dev/sails; ",
-    "dev": "export NODE_ENV=development; export HOOK_S3_ACCESS_KEY=$npm_package_config_hookS3AccessKey; export HOOK_S3_SECRET_KEY=$npm_package_config_hookS3SecretKey; export HOOK_S3_REGION=$npm_package_config_hookS3Region; export HOOK_S3_BUCKET=$npm_package_config_hookS3Bucket; export HOOK_S3_ENDPOINT=$npm_package_config_hookS3Endpoint; docker-compose -f support/development/docker-compose.yml up",
+    "dev": "export NODE_ENV=development; export HOOK_S3_ACCESS_KEY=$npm_package_config_hookS3AccessKey; export HOOK_S3_SECRET_KEY=$npm_package_config_hookS3SecretKey; export HOOK_S3_REGION=$npm_package_config_hookS3Region; export HOOK_S3_BUCKET=$npm_package_config_hookS3Bucket; export HOOK_S3_ENDPOINT=$npm_package_config_hookS3Endpoint; docker-compose -f support/development/docker-compose.yml up --remove-orphans",
     "pretest": "mkdir -p support/test/.dev/attachments; mkdir -p support/test/.dev/sails;",
-    "test": "export NODE_ENV=test; export HOOK_S3_ACCESS_KEY=$npm_package_config_hook_s3_access_key; export HOOK_S3_SECRET_KEY=$npm_package_config_hook_s3_secret_key; export HOOK_S3_REGION=$npm_package_config_hook_s3_region; export HOOK_S3_BUCKET=$npm_package_config_hookS3Bucket; export HOOK_S3_ENDPOINT=$npm_package_config_hookS3Endpoint; docker-compose -f support/test/docker-compose.yml up --abort-on-container-exit --exit-code-from hook"
+    "test": "export NODE_ENV=test; export HOOK_S3_ACCESS_KEY=$npm_package_config_hook_s3_access_key; export HOOK_S3_SECRET_KEY=$npm_package_config_hook_s3_secret_key; export HOOK_S3_REGION=$npm_package_config_hook_s3_region; export HOOK_S3_BUCKET=$npm_package_config_hookS3Bucket; export HOOK_S3_ENDPOINT=$npm_package_config_hookS3Endpoint; docker-compose -f support/test/docker-compose.yml up --abort-on-container-exit --exit-code-from hook --remove-orphans"
   },
   "repository": {
     "type": "git",
@@ -60,6 +60,8 @@
     "@aws-sdk/client-s3": "^3.170.0",
     "@researchdatabox/redbox-core-types": "^1.1.0",
     "@uppy/companion": "^4.0.1",
-    "lodash": "^4.17.21"
+    "hasha": "^5.2.2",
+    "lodash": "^4.17.21",
+    "nanoid": "^3.1.30"
   }
 }
