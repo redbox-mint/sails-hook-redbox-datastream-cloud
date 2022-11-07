@@ -1,6 +1,6 @@
 {
   "name": "@researchdatabox/sails-hook-redbox-datastream-cloud",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A ReDBox Datastream Service implementation for Cloud storage services, e.g. AWS S3, Minio, etc.",
   "main": "index.js",
   "sails": {
