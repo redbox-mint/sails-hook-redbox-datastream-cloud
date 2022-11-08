@@ -31,7 +31,7 @@ const uploadToS3 = (s3Client, bucketName, key, srcStream, logS3Upload, md5Hex) =
 
 const rcloneToS3 = async (rcloneConfigPath, configName, bucketName, key, fullTempPath) => {
   const rclone_cmd = `rclone --config=${rcloneConfigPath} copy ${fullTempPath} ${configName}:${bucketName}/${key}`;
-  console.log(`Running; ${rclone_cmd}`);
+  console.log(`Running: ${rclone_cmd}`);
   await execAsync(rclone_cmd);
 }
 
@@ -101,7 +101,7 @@ const migrate = async () => {
           if (!_.isEmpty(names[1])) {
             fileId = names[1];
           } else {
-            console.error(`Can't guess fileId from name: ${attachment.filename} of ${oid}`);
+            console.error(`Error, can't guess fileId from name: ${attachment.filename} of ${oid}`);
             stats.errored.push(oid);
             continue;
           }
@@ -112,37 +112,52 @@ const migrate = async () => {
         let sourceMd5 = "";
         let srcStream = null;
         const fullTempPath = `${tempDir}/${fileId}`
+        console.log(`Processing: ${fileId}`);
+        // check if already in the target DB
+        const existingAtt = await targetCol.findOne({'metadata.fileId': fileId, 'redboxOid': oid});
+        if (config.s3.skipUploaded == true) {
+          if (_.size(existingAtt) > 0) {
+            // try to see if there's any size change
+            if (existingAtt.metadata.size == attachment.length) {
+              stats.skipped.push(fileId);
+              console.log(`Skipping: ${fileId} of ${oid}`);
+              continue;
+            }
+          }
+        }
+        let fd = null;
         try {
           sourceMd5 = _.get(await srcDb.command({filemd5: attachment._id, root: "fs"}), 'md5'); 
         } catch (e) {
           console.error(e);
           console.warn(`Failed to get md5 for fileId:${fileId} of ${oid}`);
         }
-        if (config.s3.skipUploaded == true) {
-          // check if already in the target DB
-          const existingAtt = await targetCol.findOne({'metadata.fileId': fileId});
-          if (_.size(existingAtt) > 0) {
-            // try to see if there's any size change
-            if (existingAtt.metadata.size == attachment.length) {
-              stats.skipped.push(fileId);
-              console.log(`Skipping: ${fileId}`);
-              continue;
-            } else {
-              console.log(`Reuploading '${fileId}' because sizes did not match: '${attachment.length}' != '${existingAtt.metadata.size}'`);
-            }
-          }
-        }
-        console.log(`Processing: ${fileId}`);
-        let fd = null;
         // if the md5 is empty, most likely it's too big to stream out, using mongofiles to dump the data
         if (_.isEmpty(sourceMd5)) {
           sourceMd5 = await downloadSrcToTemp(srcConnStr, attachment.filename, fullTempPath);
           fd = await fs.open(fullTempPath);
           srcStream = fd.createReadStream();
-          // const md5sum_cmd = `md5sum ${fullTempPath}`;
-          // sourceMd5 = _.trim(await execAsync(md5sum_cmd));
         } else {
           srcStream = bucket.openDownloadStreamByName(attachment.filename);
+        }
+        if (config.s3.skipUploaded == true) {
+          if (_.size(existingAtt) > 0) {
+            // try to see if there's any size change
+            if (existingAtt.metadata.md5 == sourceMd5) {
+              stats.skipped.push(fileId);
+              console.log(`Skipping: ${fileId} of ${oid}`);
+              if (!_.isEmpty(fd)) {
+                try {
+                  fd.close();
+                } catch (err) {
+                  console.error(`Error closing fd: ${fileId} of ${oid}, ignoring...`);
+                }
+              }
+              continue;
+            } else {
+              console.log(`Reuploading '${fileId}' of ${oid} because md5 did not match: ${existingAtt.metadata.md5} != ${sourceMd5}`);
+            }
+          }
         }
         let uploadResp = null;
         let key = `${config.s3.keyPrefix}${oid}/${fileId}`;
@@ -150,9 +165,9 @@ const migrate = async () => {
           uploadResp = await uploadToS3(s3Client, bucketName, key, srcStream, config.s3.logS3UploadProgress, sourceMd5);
           if (uploadResp['$metadata'].httpStatusCode != 200) {
             console.error(`Failed to upload: ${key}`);
-            stats.errored.push(attachment);
             console.error(uploadResp);
-            continue;
+            // Note: we try again with rclone
+            throw new Error(`Failed to upload ${key} of ${oid}`);
           }   
         } catch (error) {
           console.error(error);
@@ -170,17 +185,21 @@ const migrate = async () => {
               }
               console.log(`Mongofiles uploaded okay: ${fullTempPath}, cleaning up...`);
             } catch (err2) {
-              await rcloneToS3('/etc/rclone/rclone.conf', 'backups', bucketName, `${config.s3.keyPrefix}${oid}`, fullTempPath);
+              await rcloneToS3(config.rclone.configPath, config.rclone.remoteName, bucketName, `${config.s3.keyPrefix}${oid}`, fullTempPath);
             }
           } else {
             try { 
-              await rcloneToS3('/etc/rclone/rclone.conf', 'backups', bucketName, `${config.s3.keyPrefix}${oid}`, fullTempPath);
+              await rcloneToS3(config.rclone.configPath, config.rclone.remoteName, bucketName, `${config.s3.keyPrefix}${oid}`, fullTempPath);
             } catch (err2) {
-              console.log(`Mongofiles already downloaded the file, still failed to upload, adding to errored: ${fileId} of ${oid}, cleaning up...`);
+              console.error(`Mongofiles already downloaded the file, still failed to upload, adding to errored: ${fileId} of ${oid}, cleaning up...`);
               stats.errored.push(attachment);
             }
           }
-          await fs.unlink(fullTempPath);
+          try {
+            await fs.unlink(fullTempPath);
+          } catch (ferr) {
+            console.error(`Failed to clean up: ${fullTempPath}`);
+          }
         }
         console.log(`Uploaded okay, saving metadata ${fileId} of ${oid}`);
         // save the state of the upload
@@ -197,6 +216,13 @@ const migrate = async () => {
         });
         await targetCol.replaceOne({'metadata.fileId': fileId}, { redboxOid: oid, uploadDate: attachment.uploadDate, metadata: attachMetaRel }, {upsert:true});
         stats.uploaded.push(fileId);
+        if (!_.isEmpty(fd)) {
+          try {
+            fd.close();
+          } catch (err) {
+            console.error(`Error closing fd: ${fileId} of ${oid}, ignoring...`);
+          }
+        }
       } catch (err) {
         console.error(`Failed to process: ${fileId} of oid: ${oid}`);
         console.error(err);
@@ -204,7 +230,7 @@ const migrate = async () => {
       }      
     }
   } catch (error) {
-    console.error(`Error thrown: `);
+    console.error(`Generic error thrown: `);
     console.error(error);
   }
   srcClient.close();

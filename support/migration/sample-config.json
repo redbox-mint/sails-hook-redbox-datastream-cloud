@@ -1,7 +1,7 @@
 {
   "mongodb": {
     "source": {
-      "connectionStr": "mongodb://localhost:27018",
+      "connectionStr": "mongodb://localhost:27017",
       "dbName": "redbox-storage",
       "query": {}
     },
@@ -11,6 +11,10 @@
       "collection": "cloudattachment",
       "tempDir": "/tmp"
     }
+  },
+  "rclone": {
+    "configPath": "",
+    "remoteName": ""
   },
   "s3": {
     "bucketName": "attachments",

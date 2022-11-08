@@ -293,7 +293,7 @@ export module Services {
       // used for uploading files from the server to the cloud storage provider
       if (_.isEmpty(_.get(datastream, 'cloudType')) && sails.config.datastreamCloud.defaultCloudType == 's3') {
         // default to S3
-        this.uploadToS3(oid, datastream);
+        await this.uploadToS3(oid, datastream);
       } else {
         //TODO: handle other provider types, but for now fail fast
         sails.log.error(`${this.logHeader} addDatastream() -> Cloud type unsupported: ${_.get(datastream, 'cloudType')}`);
@@ -315,20 +315,21 @@ export module Services {
         if (!_.isEmpty(datastream['bucket'])) {
           uploadParams['Bucket'] = datastream['bucket'];
         }
-        uploadParams['Key'] = this.getKey(oid, datastream.fileId);
+        const key = this.getKey(oid, datastream.fileId);
+        uploadParams['Key'] = key;
         uploadParams['Body'] = fileStream;
         uploadParams['ContentMD5'] = md5Base64;
         try {
           sails.log.verbose(`${this.logHeader} addDataStream() -> Uploading: ${filePath}`);
           const uploadResp = await this.s3Client.send(new PutObjectCommand(uploadParams));
           if (_.get(uploadResp, '$metadata.httpStatusCode') == 200) {
-            sails.log.verbose(`${this.logHeader} addDataStream() -> Upload success: ${uploadParams['Key']}`);
+            sails.log.verbose(`${this.logHeader} addDataStream() -> Upload success: ${key}`);
             // saved the state of the upload
             const attachMetaRel = _.merge(datastream.metadata, {
               source: 'server',
               cloudType: 's3',
               bucket: this.s3BucketParams.Bucket,
-              key: uploadParams['Key'],
+              key: key,
               filename: datastream.fileId,
               ETag: uploadResp['ETag'],
               md5: md5Hex
@@ -337,6 +338,8 @@ export module Services {
           } else {
             sails.log.error(`${this.logHeader} addDatastream() -> Failed to upload file: ${filePath}`);
             sails.log.error(JSON.stringify(uploadResp));
+            const rclone_cmd = `rclone --config=${sails.config.datastreamCloud.rclone.configPath} ${filePath} ${sails.config.datastreamCloud.rclone.remoteName}:${this.s3BucketParams.Bucket}/${sails.config.datastreamCloud.keyPrefix}${oid}`;
+            sails.log.error(`${this.logHeader} addDatastream() -> DEAR SUPPORT STAFF, here's the rclone command you *could* run: ${rclone_cmd} `);
             throw new Error("Failed to upload file, check server logs.");
           }
         } catch (err) {

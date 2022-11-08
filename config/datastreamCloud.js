@@ -8,6 +8,10 @@ module.exports.datastreamCloud = {
   defaultCloudType: 's3',
   useObjectBucketMetadata: false, // whether to use the bucket name stored in metadata during download
   keyPrefix: 'attachments/',
+  rclone: {
+    configPath: '',
+    remoteName: ''
+  },
   mongodb: {
     indices: [
       {
