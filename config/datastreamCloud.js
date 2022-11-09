@@ -8,10 +8,11 @@ module.exports.datastreamCloud = {
   defaultCloudType: 's3',
   useObjectBucketMetadata: false, // whether to use the bucket name stored in metadata during download
   keyPrefix: 'attachments/',
-  rclone: {
-    configPath: '',
-    remoteName: ''
-  },
+  // For support staff, you can set the rclone config block values so if there's transfer issue, the rclone config path can be printed as part of the error message.
+  // rclone: {
+  //   configPath: '',
+  //   remoteName: ''
+  // },
   mongodb: {
     indices: [
       {
