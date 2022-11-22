@@ -203,6 +203,7 @@ export module Services {
           const oldAttachments = record.metadata[attField];
           const newAttachments = newMetadata[attField];
           const removeIds = [];
+          const addIds = [];
           // process removals
           if (!_.isUndefined(oldAttachments) && !_.isNull(oldAttachments) && !_.isNull(newAttachments)) {
             const toRemove = _.differenceBy(oldAttachments, newAttachments, 'fileId');
@@ -217,11 +218,13 @@ export module Services {
             const toAdd = _.differenceBy(newAttachments, oldAttachments, 'fileId');
             _.each(toAdd, (addAtt) => {
               if (addAtt.type == 'attachment') {
-                fileIdsAdded.push(new Datastream(addAtt));
+                const newDs = new Datastream(addAtt);
+                addIds.push(newDs);
+                fileIdsAdded.push(newDs);
               }
             });
           }
-          reqs.push(this.addAndRemoveDatastreams(oid, fileIdsAdded, removeIds));
+          reqs.push(this.addAndRemoveDatastreams(oid, addIds, removeIds));
         });
         if (_.isEmpty(reqs)) {
           reqs.push(Observable.of({"request": "dummy"}));
