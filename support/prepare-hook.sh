@@ -1,5 +1,5 @@
 #! /bin/sh
-HOOK_VERSION=1.0.8
+HOOK_VERSION=1.0.9
 cd /tmp
 npm pack /opt/sails-hook-redbox-datastream-cloud
 cd /opt/redbox-portal

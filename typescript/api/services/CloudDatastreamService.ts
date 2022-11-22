@@ -328,7 +328,7 @@ export module Services {
           if (_.get(uploadResp, '$metadata.httpStatusCode') == 200) {
             sails.log.verbose(`${this.logHeader} addDataStream() -> Upload success: ${key}`);
             // saved the state of the upload
-            const attachMetaRel = _.merge(datastream.metadata, {
+            const attachMetaRel = _.merge({}, datastream.metadata, {
               source: 'server',
               cloudType: 's3',
               bucket: this.s3BucketParams.Bucket,
