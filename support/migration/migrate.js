@@ -63,6 +63,10 @@ const migrate = async () => {
   const targetDbName = config.mongodb.target.dbName;
   const bucketName = config.s3.bucketName;
   const tempDir = config.mongodb.target.tempDir;
+  if (_.isEmpty(config.rclone.configPath) || _.isEmpty(config.rclone.remoteName)) {
+    console.error(`Please set 'config.rclone.configPath' or 'config.rclone.remoteName'.`);
+    return;
+  }
   let srcClient = null;
   let targetClient = null;
   let s3Client = null;
@@ -193,6 +197,7 @@ const migrate = async () => {
             } catch (err2) {
               console.error(`Mongofiles already downloaded the file, still failed to upload, adding to errored: ${fileId} of ${oid}, cleaning up...`);
               stats.errored.push(attachment);
+              throw (err2);
             }
           }
           try {
