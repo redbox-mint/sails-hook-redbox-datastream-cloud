@@ -35,9 +35,9 @@ const rcloneToS3 = async (rcloneConfigPath, configName, bucketName, key, fullTem
   await execAsync(rclone_cmd);
 }
 
-const downloadSrcToTemp = async (srcConnStr, srcFileName, fullTempPath) => {
-  const mongofiles_cmd = `mongofiles --uri="${srcConnStr}" -d redbox-storage get "${srcFileName}" -l="${fullTempPath}"`;
-  console.log(`Error in upload, downloading via mongofiles: ${mongofiles_cmd}`);
+const downloadSrcToTemp = async (srcConnStr, srcDb, srcFileId, fullTempPath) => {
+  const mongofiles_cmd = `mongofiles --uri="${srcConnStr}" -d ${srcDb} get_id '{"$oid": "${srcFileId}"}' -l="${fullTempPath}"`;
+  console.log(`Downloading via mongofiles: ${mongofiles_cmd}`);
   await execAsync(mongofiles_cmd);
   console.log(`Mongofiles downloaded okay: ${fullTempPath}, uploading...`);
   const hash = await hasha.fromFile(fullTempPath, {algorithm: 'md5', encoding: 'hex'});
@@ -45,6 +45,7 @@ const downloadSrcToTemp = async (srcConnStr, srcFileName, fullTempPath) => {
 };
 
 const migrate = async () => {
+  const startTime = new Date();
   const configFilePath = process.argv[2];
   if (!configFilePath) {
     console.error(`Please specify config file path.`);
@@ -77,6 +78,7 @@ const migrate = async () => {
     errored: []
   };
   try {
+    console.log(`Start time: ${startTime.toLocaleString()}`);
     const clientConfig = config.s3.clientConfig;
     s3Client = new S3Client(clientConfig);
     console.log(`Connecting to source db: ${srcConnStr}`);
@@ -96,7 +98,7 @@ const migrate = async () => {
     const cursor = bucket.find(config.mongodb.source.query);
     while (await cursor.hasNext()) {
       const attachment = await cursor.next();
-      const oid = attachment.metadata.redboxOid;
+      const oid = attachment.metadata.redboxOid || attachment.metadata.oid;
       let fileId = attachment.metadata.fileId;
       if (_.isEmpty(fileId)) {
         // try to guess the fileId
@@ -138,7 +140,8 @@ const migrate = async () => {
         }
         // if the md5 is empty, most likely it's too big to stream out, using mongofiles to dump the data
         if (_.isEmpty(sourceMd5)) {
-          sourceMd5 = await downloadSrcToTemp(srcConnStr, attachment.filename, fullTempPath);
+          console.info(`File has no md5 or could be too big to stream out, using mongofiles to download: ${fileId} of ${oid}`);
+          sourceMd5 = await downloadSrcToTemp(srcConnStr, srcDbName, attachment._id, fullTempPath);
           fd = await fs.open(fullTempPath);
           srcStream = fd.createReadStream();
         } else {
@@ -174,9 +177,10 @@ const migrate = async () => {
             throw new Error(`Failed to upload ${key} of ${oid}`);
           }   
         } catch (error) {
+          console.error(`Error in streamed upload: ${fileId} of ${oid}`);
           console.error(error);
           if (fd == null) {
-            sourceMd5 = await downloadSrcToTemp(srcConnStr, attachment.filename, fullTempPath);
+            sourceMd5 = await downloadSrcToTemp(srcConnStr, srcDbName, attachment._id, fullTempPath);
             fd = await fs.open(fullTempPath);
             srcStream = fd.createReadStream();
             try {
@@ -246,6 +250,11 @@ const migrate = async () => {
   console.log(`Errored: ${_.size(stats.errored)}`);
   console.log(JSON.stringify(stats.errored));
   // done
+  const endTime = new Date();
+  const elapsedTime = (endTime - startTime) / 60000; // Convert milliseconds to minutes
+  const elapsedTimeHours = elapsedTime / 60; // Convert minutes to hours
+  console.log(`Elapsed time: ${elapsedTime} minutes`);
+  console.log(`Elapsed time hours: ${elapsedTimeHours} hours`);
   return 'Migration done!'
 };
 
