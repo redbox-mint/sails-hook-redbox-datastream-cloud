@@ -198,8 +198,8 @@ export module Services {
       return FormsService.getFormByName(record.metaMetadata.form, true)
       .flatMap(form => {
         const reqs = [];
-        record.metaMetadata.attachmentFields = form.attachmentFields;
-        _.each(form.attachmentFields, async (attField) => {
+        record.metaMetadata.attachmentFields = form != undefined ? form.attachmentFields : [];
+        _.each(record.metaMetadata.attachmentFields, async (attField) => {
           const oldAttachments = record.metadata[attField];
           const newAttachments = newMetadata[attField];
           const removeIds = [];
