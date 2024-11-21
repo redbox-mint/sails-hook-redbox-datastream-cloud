@@ -199,7 +199,7 @@ export module Services {
       .flatMap(form => {
         const reqs = [];
         record.metaMetadata.attachmentFields = form != undefined ? form.attachmentFields : [];
-        _.each(form.attachmentFields, async (attField) => {
+        _.each(record.metaMetadata.attachmentFields, async (attField) => {
           const oldAttachments = record.metadata[attField];
           const newAttachments = newMetadata[attField];
           const removeIds = [];
