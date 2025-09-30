@@ -13,10 +13,11 @@
     "removeComments": true,
     "noLib": false,
     "preserveConstEnums": true,
-    "suppressImplicitAnyIndexErrors": true,
     "sourceMap": false,
     "outDir": "./",
-    "rootDir": "./typescript"
+    "rootDir": "./typescript",
+    "typeRoots": ["./types", "./node_modules/@types"],
+    "skipLibCheck": true
   },
   "exclude": [
     "node_modules/**",
@@ -25,7 +26,8 @@
     "test/integration/**/*.ts"
   ],
   "include": [
-    "typescript/**/*.ts"
+    "typescript/**/*.ts",
+    "types/**/*.d.ts"
   ],
   "compileOnSave": true,
   "buildOnSave": false,
