@@ -1,18 +1,23 @@
+import { v1 as uuidv1 } from 'uuid';
+import {mkdir, readFile} from "node:fs/promises";
+import {resolve} from "node:path";
+
 import { Sails, Model } from "sails";
-import {
-  Observable
-} from 'rxjs/Rx';
+import * as Observable from "rxjs";
+import {hashFile} from "hasha";
+import * as _ from "lodash";
+
+
+
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, PutObjectCommandInput, CompleteMultipartUploadCommandOutput } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 
 import { Services as services, DatastreamService, DatastreamServiceResponse, Datastream, Attachment } from '@researchdatabox/redbox-core-types';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { v1 as uuidv1 } from 'uuid';
 
-const fs = require('fs-extra');
-const hasha = require('hasha');
 
 declare var sails: Sails;
-declare var _;
 declare var CloudAttachment: Model, FormsService;
+
 
 export module Services {
   /**
@@ -76,9 +81,7 @@ export module Services {
           companionConfig.maxFileSize = sails.config.record.maxUploadSize;
         }
         const stagingDir = companionConfig.filePath;
-        if (! await fs.exists(stagingDir)) {
-          await fs.mkdir(stagingDir);
-        }
+        await mkdir(stagingDir, {recursive: true});
   
         const { app:companionApp, emitter } = companion.app(companionConfig);
         sails.config.policies[`/${sails.config.api.additionalClientConfig.companionPath}/*`] = [
@@ -208,7 +211,7 @@ export module Services {
           if (!_.isUndefined(oldAttachments) && !_.isNull(oldAttachments) && !_.isNull(newAttachments)) {
             const toRemove = _.differenceBy(oldAttachments, newAttachments, 'fileId');
             _.each(toRemove, (removeAtt) => {
-              if (removeAtt.type == 'attachment') {
+              if (removeAtt['type'] == 'attachment') {
                 removeIds.push(new Datastream(removeAtt));
               }
             });
@@ -217,7 +220,7 @@ export module Services {
           if (!_.isUndefined(newAttachments) && !_.isNull(newAttachments)) {
             const toAdd = _.differenceBy(newAttachments, oldAttachments, 'fileId');
             _.each(toAdd, (addAtt) => {
-              if (addAtt.type == 'attachment') {
+              if (addAtt['type'] == 'attachment') {
                 const newDs = new Datastream(addAtt);
                 addIds.push(newDs);
                 fileIdsAdded.push(newDs);
@@ -304,57 +307,83 @@ export module Services {
       }
     }
 
-    private async getMD5HashFromFile(filePath){
-      return await hasha.fromFile(filePath, {algorithm: 'md5', encoding: 'hex'}); 
+    private async getMD5HashFromFile(filePath: string){
+      return await hashFile(filePath, {algorithm: 'md5', encoding: 'hex'});
     }
 
     private async uploadToS3(oid: string, datastream: Datastream) {
-      const filePath = `${sails.config.datastreamCloud.companion.filePath}/${datastream.fileId}`;
-      if (await fs.exists(filePath)) {
-        const md5Hex = await this.getMD5HashFromFile(filePath);
-        const md5Base64 = Buffer.from(md5Hex, 'hex').toString('base64');
-        const fileStream = fs.createReadStream(filePath);     
-        const uploadParams = _.clone(this.s3BucketParams);
-        if (!_.isEmpty(datastream['bucket'])) {
-          uploadParams['Bucket'] = datastream['bucket'];
-        }
-        const key = this.getKey(oid, datastream.fileId);
-        uploadParams['Key'] = key;
-        uploadParams['Body'] = fileStream;
-        uploadParams['ContentMD5'] = md5Base64;
+      const filePath = resolve(`${sails.config.datastreamCloud.companion.filePath}/${datastream.fileId}`);
+      const bucket = datastream['bucket'] || this.s3BucketParams['Bucket'];
+      const key = this.getKey(oid, datastream.fileId);
+      const uploadParams = {Bucket: bucket, Key: key, Body: null};
+      const md5Hex = await this.getMD5HashFromFile(filePath);
+
+      let msgInfo = `bucket '${bucket}' key '${key}' file '${filePath}'`
+      let uploadResult: CompleteMultipartUploadCommandOutput | null = null;
+
+      // Read the file and upload to S3 bucket
+      try {
+        const body = await readFile(filePath);
+        uploadParams.Body = body;
+        msgInfo = `${msgInfo} size ${body.length}`
+
+        // Upload the file to the S3 bucket
+        const parallelUploads3 = new Upload({
+          client: this.s3Client,
+          params: uploadParams,
+
+          // additional optional fields show default values below:
+
+          // (optional) concurrency configuration
+          queueSize: 4,
+
+          // (optional) size of each part, in bytes, at least 5MB
+          partSize: 1024 * 1024 * 5,
+
+          // (optional) when true, do not automatically call AbortMultipartUpload when
+          // a multipart upload fails to complete. You should then manually handle
+          // the leftover parts.
+          leavePartsOnError: false,
+        });
+
+        parallelUploads3.on("httpUploadProgress", (progress) => {
+          sails.log.verbose(`${this.logHeader} addDataStream() -> Upload progress for ${msgInfo}: ${progress}`);
+        });
+
+        sails.log.verbose(`${this.logHeader} addDataStream() -> Start upload for ${msgInfo}`);
+
+        uploadResult = await parallelUploads3.done();
+      } catch (err) {
+        sails.log.error(`${this.logHeader} addDatastream() -> Failed to upload to ${msgInfo} with response ${JSON.stringify(uploadResult)}: ${err}`);
+
+        const rclone_cmd = `rclone --config=${sails.config.datastreamCloud.rclone.configPath} ${filePath} ${sails.config.datastreamCloud.rclone.remoteName}:${bucket}/${key}`;
+        sails.log.error(`${this.logHeader} addDatastream() -> DEAR SUPPORT STAFF, here's the rclone command you *could* run: ${rclone_cmd} `);
+
+        throw new Error("Failed to upload file, check server logs.");
+      }
+
+      // Record the outcome of the upload
+      const uploadStatusCode = uploadResult?.$metadata?.httpStatusCode;
+      if (uploadStatusCode === 200) {
         try {
-          sails.log.verbose(`${this.logHeader} addDataStream() -> Uploading: ${filePath}`);
-          const uploadResp = await this.s3Client.send(new PutObjectCommand(uploadParams));
-          if (_.get(uploadResp, '$metadata.httpStatusCode') == 200) {
-            sails.log.verbose(`${this.logHeader} addDataStream() -> Upload success: ${key}`);
-            // saved the state of the upload
-            const attachMetaRel = _.merge({}, datastream.metadata, {
-              source: 'server',
-              cloudType: 's3',
-              bucket: this.s3BucketParams.Bucket,
-              key: key,
-              filename: datastream.fileId,
-              ETag: uploadResp['ETag'],
-              md5: md5Hex
-            });
-            await this.saveAttachmentRel(oid, attachMetaRel);
-          } else {
-            sails.log.error(`${this.logHeader} addDatastream() -> Failed to upload file: ${filePath}`);
-            sails.log.error(JSON.stringify(uploadResp));
-            const rclone_cmd = `rclone --config=${sails.config.datastreamCloud.rclone.configPath} ${filePath} ${sails.config.datastreamCloud.rclone.remoteName}:${this.s3BucketParams.Bucket}/${sails.config.datastreamCloud.keyPrefix}${oid}`;
-            sails.log.error(`${this.logHeader} addDatastream() -> DEAR SUPPORT STAFF, here's the rclone command you *could* run: ${rclone_cmd} `);
-            throw new Error("Failed to upload file, check server logs.");
-          }
+          sails.log.verbose(`${this.logHeader} addDataStream() -> Upload success for ${msgInfo}`);
+          // saved the state of the upload
+          const attachMetaRel = _.merge({}, datastream.metadata, {
+            source: 'server',
+            cloudType: 's3',
+            bucket: this.s3BucketParams.Bucket,
+            key: key,
+            filename: datastream.fileId,
+            ETag: uploadResult.ETag,
+            md5: md5Hex,
+          });
+          await this.saveAttachmentRel(oid, attachMetaRel);
         } catch (err) {
-          sails.log.error(`${this.logHeader} addDatastream() -> Failed to upload: ${uploadParams['Key']}`);
-          sails.log.error(err);
-          _.unset(uploadParams, 'Body');
-          sails.log.error(uploadParams);
+          sails.log.error(`${this.logHeader} addDatastream() -> Failed to save record attachment for ${msgInfo}`);
           throw new Error("Failed to upload file, check server logs.");
         }
       } else {
-        sails.log.error(`${this.logHeader} addDatastream() -> File not found: ${filePath}`);
-        throw new Error(`File not found: ${datastream.fileId}`);
+        sails.log.war(`${this.logHeader} addDataStream() -> Upload failed so not saving record attachment for ${msgInfo}`);
       }
     }
 
