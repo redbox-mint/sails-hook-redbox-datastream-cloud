@@ -1,8 +1,19 @@
 version: 2.1
 jobs:
+  build_and_test:
+    docker:
+      - image: cimg/node:24
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run: npm install && node_modules/.bin/tsc --skipLibCheck
+      - run:
+          name: Running Test
+          command: npm run test
+
   build_test_and_publish:
     docker:
-      - image: cimg/node:18.7.0
+      - image: cimg/node:24
     working_directory: ~/repo
     steps:
       #- setup_remote_docker
@@ -10,9 +21,9 @@ jobs:
       #      at: /home/circleci/project
       - checkout
       - run: npm install && node_modules/.bin/tsc --skipLibCheck
-      # - run:
-      #     name: Running Test
-      #     command: npm run test
+      - run:
+          name: Running Test
+          command: npm run test
       - run:
           name: Authenticate with NPM
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/repo/.npmrc
@@ -21,6 +32,16 @@ jobs:
           command: npm publish --access public
 
 workflows:
+  branch_test:
+    jobs:
+      - build_and_test:
+          filters:
+            branches:
+              ignore: 
+                - gh-pages
+            tags:
+              ignore: /.*/
+  
   publish:
     jobs:
       - build_test_and_publish:
