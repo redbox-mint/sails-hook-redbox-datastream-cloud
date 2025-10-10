@@ -32,8 +32,6 @@ services:
       - "1500:1500"
     expose:
       - "1500"
-    volumes:
-      - "./.dev/attachments:/attachments:delegated"
     depends_on:
      - minio
      - mongodb

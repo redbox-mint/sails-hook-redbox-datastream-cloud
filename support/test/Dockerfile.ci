@@ -1,10 +1,23 @@
 FROM qcifengineering/redbox-portal:master
 
-# Copy the hook code into the container
+# Switch to root user to ensure we have permission to modify files
+USER root
+
+# Copy the hook code with proper permissions
+COPY --chmod=755 support/ /opt/sails-hook-redbox-datastream-cloud/support/
 COPY . /opt/sails-hook-redbox-datastream-cloud/
 
 # Set working directory
 WORKDIR /opt/sails-hook-redbox-datastream-cloud
 
-# Make scripts executable
-RUN chmod +x support/*.sh support/test/*.sh
+# Ensure scripts are executable (fallback)
+RUN find support/ -name "*.sh" -exec chmod +x {} \; || true
+
+# Set ownership to the correct user if needed
+RUN chown -R node:node /opt/sails-hook-redbox-datastream-cloud || true
+
+# Create attachments directory with proper ownership
+RUN mkdir attachments &&c chown node:node /attachments || true
+
+# Switch back to node user
+USER node
