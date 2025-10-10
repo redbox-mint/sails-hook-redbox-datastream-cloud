@@ -12,7 +12,7 @@ cd /opt/redbox-portal/node_modules/@researchdatabox/sails-hook-redbox-datastream
 echo "Installing mocha...."
 npm i mocha -g
 echo "Running Mocha tests..."
-NODE_ENV=test; mocha --exit test/bootstrap.js test/unit/**/*.test.js
+NODE_ENV=test mocha --exit --config .mocharc.json --reporter spec --verbose test/bootstrap.js test/unit/**/*.test.js
 if [ $? -eq 0 ]
 then
   echo "Mocha Tests passed"

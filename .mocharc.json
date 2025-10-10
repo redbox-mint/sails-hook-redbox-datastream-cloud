@@ -1,0 +1,11 @@
+{
+  "require": [
+    "test/mocha-hooks.js"
+  ],
+  "reporter": "spec",
+  "recursive": true,
+  "ui": "bdd",
+  "timeout": 180000,
+  "slow": 180000,
+  "globals": ["sails", "expect", "should", "_", "fs", "uuidv1"]
+}
