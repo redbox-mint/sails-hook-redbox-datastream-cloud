@@ -4,7 +4,7 @@ import {resolve} from "node:path";
 
 import { Sails, Model } from "sails";
 import * as Observable from "rxjs";
-import {hashFile} from "hasha";
+import * as hasha from "hasha";
 import * as _ from "lodash";
 
 
@@ -308,7 +308,7 @@ export module Services {
     }
 
     private async getMD5HashFromFile(filePath: string){
-      return await hashFile(filePath, {algorithm: 'md5', encoding: 'hex'});
+      return await hasha.fromFile(filePath, {algorithm: 'md5', encoding: 'hex'});
     }
 
     private async uploadToS3(oid: string, datastream: Datastream) {

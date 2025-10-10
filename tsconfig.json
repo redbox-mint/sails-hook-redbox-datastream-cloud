@@ -10,10 +10,10 @@
     "declaration": false,
     "noImplicitAny": false,
     "noImplicitUseStrict": false,
+    "skipLibCheck": true,
     "removeComments": true,
     "noLib": false,
     "preserveConstEnums": true,
-    "suppressImplicitAnyIndexErrors": true,
     "sourceMap": false,
     "outDir": "./",
     "rootDir": "./typescript"
