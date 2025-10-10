@@ -1,0 +1,10 @@
+FROM qcifengineering/redbox-portal:master
+
+# Copy the hook code into the container
+COPY . /opt/sails-hook-redbox-datastream-cloud/
+
+# Set working directory
+WORKDIR /opt/sails-hook-redbox-datastream-cloud
+
+# Make scripts executable
+RUN chmod +x support/*.sh support/test/*.sh
