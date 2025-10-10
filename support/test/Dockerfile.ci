@@ -17,7 +17,7 @@ RUN find support/ -name "*.sh" -exec chmod +x {} \; || true
 RUN chown -R node:node /opt/sails-hook-redbox-datastream-cloud || true
 
 # Create attachments directory with proper ownership
-RUN mkdir attachments &&c chown node:node /attachments || true
+RUN mkdir attachments && chown node:node /attachments || true
 
 # Switch back to node user
 USER node
