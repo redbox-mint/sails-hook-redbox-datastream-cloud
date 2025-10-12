@@ -1,6 +1,7 @@
 import { v1 as uuidv1 } from 'uuid';
-import {mkdir, readFile} from "node:fs/promises";
-import {resolve} from "node:path";
+import { mkdir, readFile } from "node:fs/promises";
+import { pathExists } from "fs-extra";
+import { resolve } from "node:path";
 
 import { Sails, Model } from "sails";
 import * as Observable from "rxjs";
@@ -51,10 +52,10 @@ export module Services {
       let that = this;
       const initPreReqEvents = sails.config.datastreamCloud.initPreReqEvents;
       sails.log.verbose(`${this.logHeader} Waiting for these events before initing: ${JSON.stringify(initPreReqEvents)}`);
-      sails.after(initPreReqEvents, async ()=> {
+      sails.after(initPreReqEvents, async () => {
         sails.log.verbose(`${that.logHeader} Initialising Service...`);
         await that.init();
-        sails.after('hook:redbox:storage:ready', async ()=> {
+        sails.after('hook:redbox:storage:ready', async () => {
           await that.initDb();
           sails.emit('hook:redbox:datastream:ready');
         });
@@ -81,9 +82,11 @@ export module Services {
           companionConfig.maxFileSize = sails.config.record.maxUploadSize;
         }
         const stagingDir = companionConfig.filePath;
-        await mkdir(stagingDir, {recursive: true});
-  
-        const { app:companionApp, emitter } = companion.app(companionConfig);
+        const filePathExists = await pathExists(stagingDir);
+        if (!filePathExists) {
+          await mkdir(stagingDir, { recursive: true });
+        }
+        const { app: companionApp, emitter } = companion.app(companionConfig);
         sails.config.policies[`/${sails.config.api.additionalClientConfig.companionPath}/*`] = [
           'isAuthenticated',
           companionApp
@@ -91,8 +94,8 @@ export module Services {
         // companion.socket(sails.hooks.http.server);
         emitter.on('upload-start', ({ token }) => {
           sails.log.verbose(`${that.logHeader} -> Upload started`, token)
-        
-          function onUploadEvent ({ action, payload }) {
+
+          function onUploadEvent({ action, payload }) {
             if (action === 'success') {
               emitter.off(token, onUploadEvent) // avoid listener leak
               sails.log.verbose(`${that.logHeader} -> Upload finished`, token, payload.url)
@@ -107,7 +110,7 @@ export module Services {
       // start of S3 specific config
       if (!_.isUndefined(companionConfig.s3)) {
         // init the local S3 client
-        const clientConfig = {     
+        const clientConfig = {
           region: companionConfig.s3.region
         };
         if (!_.isEmpty(companionConfig.s3.endpoint)) {
@@ -117,7 +120,7 @@ export module Services {
         if (!_.isUndefined(companionConfig.s3.bucketEndpoint)) {
           _.set(clientConfig, 'bucketEndpoint', companionConfig.s3.bucketEndpoint);
         }
-        
+
         if (!_.isUndefined(companionConfig.s3.tls)) {
           _.set(clientConfig, 'tls', companionConfig.s3.tls);
         }
@@ -140,17 +143,17 @@ export module Services {
       const db = CloudAttachment.getDatastore().manager;
       // create collection 
       // Note: promises would have made this a lot simpler, but it seems the native driver is requiring callback. Do simplify in the future when this is no longer a requirement: https://mongodb.github.io/node-mongodb-native/api-generated/db.html#collection
-      db.collection(CloudAttachment.tableName, {strict:true}, async (err, collectionInfo) => {
+      db.collection(CloudAttachment.tableName, { strict: true }, async (err, collectionInfo) => {
         if (err) {
           sails.log.verbose(`${this.logHeader} initDb() -> Collection doesn't exist, creating: ${CloudAttachment.tableName}`);
           const uuid = this.getUuid();
-          const initRec = {redboxOid: uuid};
+          const initRec = { redboxOid: uuid };
           await CloudAttachment.create(initRec);
           sails.log.verbose(`${this.logHeader} initDb() -> Creation complete, cleaning up.`);
-          await CloudAttachment.destroyOne({redboxOid: uuid});
+          await CloudAttachment.destroyOne({ redboxOid: uuid });
         } else {
           sails.log.verbose(`${this.logHeader} initDb() -> Collection '${CloudAttachment.tableName}' already exists.`);
-        } 
+        }
         // creating indices...
         // Version as of writing: http://mongodb.github.io/node-mongodb-native/3.6/api/Collection.html#createIndexes
         sails.log.verbose(`${this.logHeader} initDb() -> Checking indices.`);
@@ -166,8 +169,8 @@ export module Services {
           sails.log.error(`${this.logHeader} initDb() -> Failed to create indices:`);
           sails.log.error(err);
         }
-        sails.log.verbose(`${this.logHeader} initDb() -> DB Inited.`);  
-      }); 
+        sails.log.verbose(`${this.logHeader} initDb() -> DB Inited.`);
+      });
     }
 
     /**
@@ -185,11 +188,11 @@ export module Services {
         try {
           await this.addDatastream(oid, fileId);
           const successMessage = `Successfully uploaded: ${JSON.stringify(fileId)}`;
-          response.message = _.isEmpty(response.message) ? successMessage :  `${response.message}\n${successMessage}`;
+          response.message = _.isEmpty(response.message) ? successMessage : `${response.message}\n${successMessage}`;
         } catch (err) {
           hasFailure = true;
           const failureMessage = `Failed to upload: ${JSON.stringify(fileId)}, error is:\n${JSON.stringify(err)}`;
-          response.message = _.isEmpty(response.message) ? failureMessage :  `${response.message}\n${failureMessage}`;
+          response.message = _.isEmpty(response.message) ? failureMessage : `${response.message}\n${failureMessage}`;
         }
       }
       response.success = !hasFailure;
@@ -199,44 +202,44 @@ export module Services {
     public updateDatastream(oid: string, record, newMetadata, fileRoot, fileIdsAdded): any {
       // loop thru the attachment fields and determine if we need to add or remove
       return FormsService.getFormByName(record.metaMetadata.form, true)
-      .flatMap(form => {
-        const reqs = [];
-        record.metaMetadata.attachmentFields = form != undefined ? form.attachmentFields : [];
-        _.each(record.metaMetadata.attachmentFields, async (attField) => {
-          const oldAttachments = record.metadata[attField];
-          const newAttachments = newMetadata[attField];
-          const removeIds = [];
-          const addIds = [];
-          // process removals
-          if (!_.isUndefined(oldAttachments) && !_.isNull(oldAttachments) && !_.isNull(newAttachments)) {
-            const toRemove = _.differenceBy(oldAttachments, newAttachments, 'fileId');
-            _.each(toRemove, (removeAtt) => {
-              if (removeAtt['type'] == 'attachment') {
-                removeIds.push(new Datastream(removeAtt));
-              }
-            });
+        .flatMap(form => {
+          const reqs = [];
+          record.metaMetadata.attachmentFields = form != undefined ? form.attachmentFields : [];
+          _.each(record.metaMetadata.attachmentFields, async (attField) => {
+            const oldAttachments = record.metadata[attField];
+            const newAttachments = newMetadata[attField];
+            const removeIds = [];
+            const addIds = [];
+            // process removals
+            if (!_.isUndefined(oldAttachments) && !_.isNull(oldAttachments) && !_.isNull(newAttachments)) {
+              const toRemove = _.differenceBy(oldAttachments, newAttachments, 'fileId');
+              _.each(toRemove, (removeAtt) => {
+                if (removeAtt['type'] == 'attachment') {
+                  removeIds.push(new Datastream(removeAtt));
+                }
+              });
+            }
+            // process additions
+            if (!_.isUndefined(newAttachments) && !_.isNull(newAttachments)) {
+              const toAdd = _.differenceBy(newAttachments, oldAttachments, 'fileId');
+              _.each(toAdd, (addAtt) => {
+                if (addAtt['type'] == 'attachment') {
+                  const newDs = new Datastream(addAtt);
+                  addIds.push(newDs);
+                  fileIdsAdded.push(newDs);
+                }
+              });
+            }
+            reqs.push(this.addAndRemoveDatastreams(oid, addIds, removeIds));
+          });
+          if (_.isEmpty(reqs)) {
+            reqs.push(Observable.of({ "request": "dummy" }));
           }
-          // process additions
-          if (!_.isUndefined(newAttachments) && !_.isNull(newAttachments)) {
-            const toAdd = _.differenceBy(newAttachments, oldAttachments, 'fileId');
-            _.each(toAdd, (addAtt) => {
-              if (addAtt['type'] == 'attachment') {
-                const newDs = new Datastream(addAtt);
-                addIds.push(newDs);
-                fileIdsAdded.push(newDs);
-              }
-            });
-          }
-          reqs.push(this.addAndRemoveDatastreams(oid, addIds, removeIds));
+          return Observable.of(reqs);
         });
-        if (_.isEmpty(reqs)) {
-          reqs.push(Observable.of({"request": "dummy"}));
-        }
-        return Observable.of(reqs);
-      });
     }
 
-    public async removeDatastream(oid, datastream: Datastream) : Promise<any> {
+    public async removeDatastream(oid, datastream: Datastream): Promise<any> {
       if (_.isEmpty(_.get(datastream, 'cloudType')) && sails.config.datastreamCloud.defaultCloudType == 's3') {
         // default to S3
         const fileId = datastream.fileId;
@@ -257,7 +260,7 @@ export module Services {
           sails.log.error(error);
           sails.log.error(`${this.logHeader} removeDatastream() -> Object not found: ${streamKey}`);
           throw new Error("Failed to remove datastream.");
-        } 
+        }
       } else {
         //TODO: handle other provider types, but for now fail fast
         sails.log.error(`${this.logHeader} removeDatastream() -> Cloud type unsupported: ${_.get(datastream, 'cloudType')}`);
@@ -271,7 +274,7 @@ export module Services {
         "metadata.fileId": fileId
       };
       try {
-        await CloudAttachment.destroyOne(criteria).meta({enableExperimentalDeepTargets:true});
+        await CloudAttachment.destroyOne(criteria).meta({ enableExperimentalDeepTargets: true });
       } catch (error) {
         sails.log.error(`${this.logHeader} deleteAttachmentRel() -> Failed to delete attachment link: ${oid}, ${fileId}`);
         sails.log.error(error);
@@ -280,7 +283,7 @@ export module Services {
       }
     }
 
-    private async saveAttachmentRel(oid:string, metadata:any) {
+    private async saveAttachmentRel(oid: string, metadata: any) {
       const attachRel = {
         redboxOid: oid,
         metadata: metadata
@@ -307,15 +310,15 @@ export module Services {
       }
     }
 
-    private async getMD5HashFromFile(filePath: string){
-      return await hasha.fromFile(filePath, {algorithm: 'md5', encoding: 'hex'});
+    private async getMD5HashFromFile(filePath: string) {
+      return await hasha.fromFile(filePath, { algorithm: 'md5', encoding: 'hex' });
     }
 
     private async uploadToS3(oid: string, datastream: Datastream) {
       const filePath = resolve(`${sails.config.datastreamCloud.companion.filePath}/${datastream.fileId}`);
       const bucket = datastream['bucket'] || this.s3BucketParams['Bucket'];
       const key = this.getKey(oid, datastream.fileId);
-      const uploadParams = {Bucket: bucket, Key: key, Body: null};
+      const uploadParams = { Bucket: bucket, Key: key, Body: null };
       const md5Hex = await this.getMD5HashFromFile(filePath);
 
       let msgInfo = `bucket '${bucket}' key '${key}' file '${filePath}'`
@@ -400,8 +403,8 @@ export module Services {
       // find the attachment record
       sails.log.verbose(`${this.logHeader} getDatastream() -> FInding: ${oid} with fileId: ${fileId}`);
       try {
-        const query = { "redboxOid": oid, "metadata.fileId": fileId };     
-        const attachRecord = await CloudAttachment.findOne(query).meta({enableExperimentalDeepTargets:true});
+        const query = { "redboxOid": oid, "metadata.fileId": fileId };
+        const attachRecord = await CloudAttachment.findOne(query).meta({ enableExperimentalDeepTargets: true });
         sails.log.verbose(attachRecord);
         if (!_.isEmpty(attachRecord)) {
           try {
@@ -436,16 +439,16 @@ export module Services {
     }
 
     public async listDatastreams(oid, fileId): Promise<any> {
-      let query:any = {"redboxOid": oid};
+      let query: any = { "redboxOid": oid };
       if (!_.isEmpty(fileId)) {
-        query = {"metadata.fileId": fileId};
+        query = { "metadata.fileId": fileId };
       }
       sails.log.verbose(`${this.logHeader} listDatastreams() -> Listing attachments of oid: ${oid}`);
       sails.log.verbose(JSON.stringify(query));
-      return this.convertToAttachmentArr(oid, await CloudAttachment.find(query).meta({enableExperimentalDeepTargets:true}));
+      return this.convertToAttachmentArr(oid, await CloudAttachment.find(query).meta({ enableExperimentalDeepTargets: true }));
     }
 
-    private getUuid():string {
+    private getUuid(): string {
       return uuidv1().replace(/-/g, '');
     }
 
@@ -455,7 +458,7 @@ export module Services {
      * @param attachments 
      * @returns 
      */
-    private convertToAttachmentArr(oid:string, attachments: any[]) {
+    private convertToAttachmentArr(oid: string, attachments: any[]) {
       const attMetaArr = [];
       for (const att of attachments) {
         const attMeta = {};
@@ -476,8 +479,8 @@ export module Services {
 // TODO: more specific consumers can specify different cloud type / destination
 class CloudDatastream extends Datastream {
   public cloudType: string;
-  
-  constructor(data:any = undefined) {
+
+  constructor(data: any = undefined) {
     super(data);
     if (data) {
       this.cloudType = data['cloudType'];
