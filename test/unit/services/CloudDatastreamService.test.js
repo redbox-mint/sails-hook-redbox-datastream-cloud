@@ -44,7 +44,11 @@ describe('The CloudDatastreamService', function () {
     console.log("Test before hook - received sails instance:", typeof sails);
     oid = global.uuidv1().replace(/-/g, '');
     datastream = {fileId: sampleRecordFile};
-    await fs.mkdir(sails.config.datastreamCloud.companion.filePath, {recursive: true});
+  
+    const filePathExists = await fs.pathExists(sails.config.datastreamCloud.companion.filePath);
+    if (!filePathExists) {
+      await fs.mkdir(sails.config.datastreamCloud.companion.filePath, {recursive: true});
+    }
     await fs.copy(sampleRecordFilePath, `${sails.config.datastreamCloud.companion.filePath}/${sampleRecordFile}`);
     sails.log.verbose(`${testHeader} before() -> We're good to go!`);
   });
