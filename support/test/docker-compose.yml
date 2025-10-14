@@ -1,10 +1,9 @@
-version: '3.7'
 networks:
   main:
 
 services:
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio:latest
     container_name: test_minio
     command: server /data --console-address ":9001"
     expose:
@@ -49,7 +48,7 @@ services:
     entrypoint: /bin/bash -c "cd /opt/sails-hook-redbox-datastream-cloud/support/test; chmod +x *.sh; ./start-test.sh"
   mongodb:
     container_name: test_mongodb
-    image: mvertes/alpine-mongo:latest
+    image: mongo:latest
     networks:
       main:
         aliases:
